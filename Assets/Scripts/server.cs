@@ -34,6 +34,7 @@ public class Server
         if (_listener == null)
         {
             _listener = new TcpListener(IPEndpoint);
+            _syncContext = SynchronizationContext.Current;
             _listener.Start();
             BeginAcceptClient();
             Debug.Log($"StartServer at {IPEndpoint.Address} {IPEndpoint.Port} {string.Join(",", Dns.GetHostEntry("localhost").AddressList.Select(s => s))}");
@@ -41,7 +42,7 @@ public class Server
         }
         else
         {
-            Debug.LogError("Server already started");
+            Debug.Log("Server already started");
         }
     }
 
@@ -60,20 +61,31 @@ public class Server
     [ContextMenu("BeginAcceptClient")]
     public void BeginAcceptClient()
     {
-        _syncContext = SynchronizationContext.Current;
+        Debug.Log("BeginAcceptClient");
         _listener?.BeginAcceptTcpClient(OnAcceptTcpClient, null);
     }
 
     private void OnAcceptTcpClient(IAsyncResult result)
     {
-        var client = _listener.EndAcceptTcpClient(result);
-        BeginAcceptClient();
-        _syncContext.Post(_ => TryCreateConnection(client), null);
+        try
+        {
+            Debug.Log("OnAcceptTcpClient");
+            var client = _listener.EndAcceptTcpClient(result);
+            Debug.Log($"OnAcceptTcpClient2 {client}");
+            _syncContext.Post(_ => TryCreateConnection(client), null);
+            Debug.Log($"OnAcceptTcpClient3");
+            BeginAcceptClient();
+            Debug.Log($"OnAcceptTcpClient4");
+        }
+        catch (Exception e)
+        {
+            Debug.Log(e.Message);
+        }
     }
 
     private void TryCreateConnection(TcpClient client)
     {
-        Debug.Log($"OnAcceptTcpClient {client}");
+        Debug.Log($"TryCreateConnection {client}");
 
         if (Connection == null)
         {
@@ -96,6 +108,8 @@ public class Server
 
     private void OnConnectionDisconnected(Connection connection)
     {
+        Debug.Log("OnConnectionDisconnected");
+
         Connection.DisconnectedEvent -= OnConnectionDisconnected;
         Connection.ReceivedDataEvent -= OnReceivedData;
         Connection.Client.Close();

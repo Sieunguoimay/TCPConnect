@@ -1,5 +1,6 @@
 using System;
 using System.Net;
+using UnityEngine;
 
 public class ConnectionMaker
 {
@@ -84,13 +85,16 @@ public class ConnectionMaker
     public static string GetLocalIPAddress()
     {
         var host = Dns.GetHostEntry(Dns.GetHostName());
+        var localIP = "127.0.0.1";
         foreach (var ip in host.AddressList)
         {
-            if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+            Debug.Log($"{ip} {ip.AddressFamily}");
+            if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork && ip.ToString().StartsWith("192.168"))
             {
-                return ip.ToString();
+                localIP = ip.ToString();
             }
         }
-        throw new Exception("No network adapters with an IPv4 address in the system!");
+        return localIP;
+        // throw new Exception("No network adapters with an IPv4 address in the system!");
     }
 }

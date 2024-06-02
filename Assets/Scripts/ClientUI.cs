@@ -1,3 +1,4 @@
+using System.Threading;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -9,11 +10,13 @@ public class ClientUI : MonoBehaviour
     [SerializeField] private TextMeshProUGUI connectStatus;
 
     private Client _client;
+    private SynchronizationContext _syncContext;
     public bool IsConnected => _client?.IsConnected ?? false;
 
     public void Setup(Client client)
     {
         _client = client;
+        _syncContext = SynchronizationContext.Current;
         _client.IsConnectedChanged -= OnClientConnectedChanged;
         _client.IsConnectedChanged += OnClientConnectedChanged;
         UpdateView();
@@ -27,7 +30,7 @@ public class ClientUI : MonoBehaviour
 
     private void OnClientConnectedChanged(Client client)
     {
-        UpdateView();
+        _syncContext.Post(_ => UpdateView(), null);
     }
 
     public void OnConnectButtonClicked()
