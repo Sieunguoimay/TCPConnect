@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading;
 using UnityEngine;
 
-public class Channel
+public class Channel: IDisposable
 {
     public StreamWriter Writer { get; }
     public TcpClient Client { get; }
@@ -59,7 +59,7 @@ public class Channel
         _stream?.BeginRead(receiveBuffer, 0, dataBufferSize, OnRead, null);
     }
 
-    public void Disconnect()
+    public void Dispose()
     {
         _stream.Close();
         Debug.Log($"Connection: Disconnect. Client.Connected = {Client.Connected}");

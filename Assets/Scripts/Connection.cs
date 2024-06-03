@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Net.Sockets;
 using UnityEngine;
 
@@ -22,7 +23,7 @@ public class Connection : IDisposable
 
     public void Dispose()
     {
-        Channel?.Disconnect();
+        Channel?.Dispose();
         Channel = null;
     }
 
