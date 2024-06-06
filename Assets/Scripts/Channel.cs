@@ -5,14 +5,14 @@ using System.Text;
 using System.Threading;
 using UnityEngine;
 
-public class Channel: IDisposable
+public class Channel : IDisposable
 {
     public StreamWriter Writer { get; }
     public TcpClient Client { get; }
     private readonly int dataBufferSize = 1024;
     private readonly byte[] receiveBuffer;
     private NetworkStream _stream;
-    private readonly SynchronizationContext _syncContext;
+    protected SynchronizationContext SyncContext { get; }
 
     public event Action<Channel> DisconnectedEvent;
     public event Action<Channel, byte[]> ReceivedDataEvent;
@@ -24,7 +24,7 @@ public class Channel: IDisposable
         this.disconnectCallback = disconnectCallback;
         if (Client.Connected)
         {
-            _syncContext = SynchronizationContext.Current;
+            SyncContext = SynchronizationContext.Current;
             _stream = Client.GetStream();
             Writer = new StreamWriter(_stream, Encoding.ASCII);
             receiveBuffer = new byte[dataBufferSize];
@@ -44,7 +44,7 @@ public class Channel: IDisposable
         if (byteLength <= 0)
         {
             // Disconnect client
-            _syncContext.Post(_ => disconnectCallback?.Invoke(this), null);
+            SyncContext.Post(_ => disconnectCallback?.Invoke(this), null);
             return;
         }
 
@@ -52,8 +52,6 @@ public class Channel: IDisposable
         var data = new byte[byteLength];
         Array.Copy(receiveBuffer, data, byteLength);
         // Handle data in any way you want to
-
-        _syncContext.Post(_ => ReceivedDataEvent?.Invoke(this, data), null);
 
         // BeginRead again so you can keep receiving data
         _stream?.BeginRead(receiveBuffer, 0, dataBufferSize, OnRead, null);
@@ -66,5 +64,10 @@ public class Channel: IDisposable
         _stream = null;
 
         DisconnectedEvent?.Invoke(this);
+    }
+
+    protected virtual void HandleReadData(byte[] data)
+    {
+        SyncContext.Post(_ => ReceivedDataEvent?.Invoke(this, data), null);
     }
 }

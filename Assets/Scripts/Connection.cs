@@ -3,13 +3,22 @@ using System.Collections.Generic;
 using System.Net.Sockets;
 using UnityEngine;
 
+public interface IConnectionDestroyer
+{
+    void DestroyConnection(Connection connection);
+}
+
 public class Connection : IDisposable
 {
     public Channel Channel { get; private set; }
-    public ConnectionManager Manager { get; }
+    public bool IsServer { get; }
+    private readonly IConnectionDestroyer destroyer;
 
-    public Connection(ConnectionManager manager, TcpClient connectedClient, Action<Channel> disconnectCallback)
+    public Connection(IConnectionDestroyer destroyer, TcpClient connectedClient, Action<Channel> disconnectCallback, bool isServer)
     {
+        this.destroyer = destroyer;
+        IsServer = isServer;
+
         if (connectedClient.Connected)
         {
             Channel = new Channel(connectedClient, disconnectCallback);
@@ -18,7 +27,6 @@ public class Connection : IDisposable
         {
             Debug.Log("Failed to setup connection. Client is not connected");
         }
-        Manager = manager;
     }
 
     public void Dispose()
@@ -29,6 +37,6 @@ public class Connection : IDisposable
 
     public void DestroyConnection()
     {
-        Manager.DestroyConnection(this);
+        destroyer.DestroyConnection(this);
     }
 }

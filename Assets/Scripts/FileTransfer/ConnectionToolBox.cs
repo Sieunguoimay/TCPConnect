@@ -2,7 +2,7 @@ using System;
 
 public class ConnectionToolBox : IDisposable
 {
-    private readonly IConnectionTool[] _tools = new IConnectionTool[] { new FileTransfer(), new FileReceiver() };
+    private readonly IConnectionTool[] _tools = new IConnectionTool[] { new FileTransfer() };
 
     public ConnectionToolBox(Connection connection)
     {

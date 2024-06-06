@@ -10,7 +10,7 @@ public interface IClientProvider
     void SetClientConnectedCallback(Action<IClientProvider, TcpClient> clientConnectedCallback);
 }
 
-public class ConnectionManager
+public class ConnectionManager : IConnectionDestroyer
 {
     private IEnumerable<IClientProvider> Providers;
     public ConnectionContainer Container { get; } = new();
@@ -50,7 +50,7 @@ public class ConnectionManager
         }
         else
         {
-            Container.AddConnection(new Connection(this, client, OnConnectionDisconnectCallback));
+            Container.AddConnection(new Connection(this, client, OnConnectionDisconnectCallback, provider is Listener));
             Debug.Log($"Added new connection {address}");
         }
     }

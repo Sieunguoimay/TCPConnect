@@ -1,6 +1,7 @@
+using System;
 using System.Diagnostics;
 using System.Text;
-
+[Obsolete]
 public class FileReceiver : IConnectionTool
 {
     private Channel _dataChannel;
