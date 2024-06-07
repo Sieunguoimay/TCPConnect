@@ -23,13 +23,12 @@ public class FileTransfer : IConnectionTool
         ControlConnection = connection;
         listener.SetClientConnectedCallback(OnConnectionConnected);
         connector.SetClientConnectedCallback(OnConnectionConnected);
-        ControlConnection.Channel.ReceivedDataEvent -= OnReceiveControlMessage;
-        ControlConnection.Channel.ReceivedDataEvent += OnReceiveControlMessage;
+        // ControlConnection.Channel.ReceivedDataEvent -= OnReceiveControlMessage;
+        // ControlConnection.Channel.ReceivedDataEvent += OnReceiveControlMessage;
     }
     public void TearDown()
     {
-        ControlConnection.Channel.ReceivedDataEvent -= OnReceiveControlMessage;
-        _dataChannel?.Dispose();
+        // ControlConnection.Channel.ReceivedDataEvent -= OnReceiveControlMessage;
         _dataChannel = null;
     }
 
@@ -42,7 +41,7 @@ public class FileTransfer : IConnectionTool
     {
         UnityEngine.Debug.Log("FileTransferManager: OnConnectionConnected");
 
-        _dataChannel = new Channel(client, OnDataChannelDisconnected);
+        _dataChannel = new Channel(client.GetStream(), OnDataChannelDisconnected);
         // _dataChannel.Writer.Write(_dataToSend);
         // _dataChannel.Writer.Flush();
     }
@@ -62,15 +61,15 @@ public class FileTransfer : IConnectionTool
             listener.TryStartServer(new IPEndPoint(IPAddress.Any, 0));
 
             var message = $"FILE_TRANSFER CONNECT_HERE {listener.IPEndpoint.Address} {listener.IPEndpoint.Port}";
-            ControlConnection.Channel.Writer.Write(message);
-            ControlConnection.Channel.Writer.Flush();
+            // ControlConnection.Channel.Writer.Write(message);
+            // ControlConnection.Channel.Writer.Flush();
             UnityEngine.Debug.Log(message);
         }
         else
         {
             var message = $"FILE_TRANSFER OPEN_LISTENER";
-            ControlConnection.Channel.Writer.Write(message);
-            ControlConnection.Channel.Writer.Flush();
+            // ControlConnection.Channel.Writer.Write(message);
+            // ControlConnection.Channel.Writer.Flush();
             UnityEngine.Debug.Log(message);
         }
 

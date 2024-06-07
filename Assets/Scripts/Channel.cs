@@ -5,32 +5,30 @@ using System.Text;
 using System.Threading;
 using UnityEngine;
 
-public class Channel : IDisposable
+public class Channel //: IDisposable
 {
     public StreamWriter Writer { get; }
-    public TcpClient Client { get; }
     private readonly int dataBufferSize = 1024;
     private readonly byte[] receiveBuffer;
-    private NetworkStream _stream;
+    private readonly NetworkStream stream;
     protected SynchronizationContext SyncContext { get; }
 
-    public event Action<Channel> DisconnectedEvent;
+    // public event Action<Channel> DisconnectedEvent;
     public event Action<Channel, byte[]> ReceivedDataEvent;
     private readonly Action<Channel> disconnectCallback;
 
-    public Channel(TcpClient client, Action<Channel> disconnectCallback)
+    public Channel(NetworkStream stream, Action<Channel> disconnectCallback)
     {
-        Client = client;
+        this.stream = stream;
         this.disconnectCallback = disconnectCallback;
-        if (Client.Connected)
+        if (this.stream != null)
         {
             SyncContext = SynchronizationContext.Current;
-            _stream = Client.GetStream();
-            Writer = new StreamWriter(_stream, Encoding.ASCII);
+            Writer = new StreamWriter(this.stream, Encoding.ASCII);
             receiveBuffer = new byte[dataBufferSize];
-            _stream.BeginRead(receiveBuffer, 0, dataBufferSize, OnRead, null);
+            this.stream.BeginRead(receiveBuffer, 0, dataBufferSize, OnRead, null);
 
-            Debug.Log($"Created Connection {_stream}");
+            Debug.Log($"Created Connection {this.stream}");
         }
         else
         {
@@ -40,7 +38,7 @@ public class Channel : IDisposable
 
     private void OnRead(IAsyncResult asyncResult)
     {
-        int byteLength = _stream?.EndRead(asyncResult) ?? 0;
+        int byteLength = stream?.EndRead(asyncResult) ?? 0;
         if (byteLength <= 0)
         {
             // Disconnect client
@@ -54,17 +52,17 @@ public class Channel : IDisposable
         // Handle data in any way you want to
 
         // BeginRead again so you can keep receiving data
-        _stream?.BeginRead(receiveBuffer, 0, dataBufferSize, OnRead, null);
+        stream?.BeginRead(receiveBuffer, 0, dataBufferSize, OnRead, null);
     }
 
-    public void Dispose()
-    {
-        _stream.Close();
-        Debug.Log($"Connection: Disconnect. Client.Connected = {Client.Connected}");
-        _stream = null;
+    // public void Dispose()
+    // {
+    //     _stream.Close();
+    //     Debug.Log($"Connection: Disconnect. Client.Connected = {Client.Connected}");
+    //     _stream = null;
 
-        DisconnectedEvent?.Invoke(this);
-    }
+    //     DisconnectedEvent?.Invoke(this);
+    // }
 
     protected virtual void HandleReadData(byte[] data)
     {

@@ -5,7 +5,7 @@ using UnityEngine;
 
 public class ApplicationStartUp : MonoBehaviour
 {
-    public ConnectionManager ConnectionManager { get; } = new();
+    public ControlConnectionManager ControlConnectionManager { get; } = new();
     public Listener Listener { get; } = new();
     public Connector Connector { get; } = new();
 
@@ -35,7 +35,7 @@ public class ApplicationStartUp : MonoBehaviour
 
     private void StartUp()
     {
-        ConnectionManager.Setup(Providers);
+        ControlConnectionManager.Setup(Providers);
         var serverEndpoint = new IPEndPoint(IPAddress.Parse(IPAddressManager.GetLocalIPAddress()), IPAddressManager.PORT);
         Listener.TryStartServer(serverEndpoint);
     }
@@ -43,6 +43,6 @@ public class ApplicationStartUp : MonoBehaviour
     private void ShutDown()
     {
         Listener.TryStopServer();
-        ConnectionManager.TearDown();
+        ControlConnectionManager.TearDown();
     }
 }

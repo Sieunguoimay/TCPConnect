@@ -6,8 +6,9 @@ public class Channel_Message : Channel
 {
     private readonly StringBuilder stringBuilder = new();
     public event Action<Channel_Message, string> ReceivedMessageEvent;
-    public Channel_Message(TcpClient client, Action<Channel> disconnectCallback)
-        : base(client, disconnectCallback)
+
+    public Channel_Message(NetworkStream stream, Action<Channel> disconnectCallback) 
+        : base(stream, disconnectCallback)
     {
     }
 

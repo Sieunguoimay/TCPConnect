@@ -12,7 +12,7 @@ public class UIDataInjector : MonoBehaviour
     {
         connector.Setup(startup.Connector);
         listener.Setup(startup.Listener);
-        connectionContainer.Setup(startup.ConnectionManager.Container);
+        connectionContainer.Setup(startup.ControlConnectionManager.Container);
     }
 
     private void OnDisable()

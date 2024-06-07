@@ -10,15 +10,15 @@ public interface IClientProvider
     void SetClientConnectedCallback(Action<IClientProvider, TcpClient> clientConnectedCallback);
 }
 
-public class ConnectionManager : IConnectionDestroyer
+public class ControlConnectionManager
 {
-    private IEnumerable<IClientProvider> Providers;
+    private IEnumerable<IClientProvider> _providers;
     public ConnectionContainer Container { get; } = new();
 
     public void Setup(IEnumerable<IClientProvider> providers)
     {
-        Providers = providers;
-        foreach (var c in Providers)
+        _providers = providers;
+        foreach (var c in _providers)
         {
             c.SetClientConnectedCallback(OnNewClientProvided);
         }
@@ -26,15 +26,17 @@ public class ConnectionManager : IConnectionDestroyer
 
     public void TearDown()
     {
-        foreach (var c in Providers)
+        foreach (var c in _providers)
         {
             c.SetClientConnectedCallback(null);
         }
 
         foreach (var c in Container.Connections)
         {
-            c.Dispose();
+            c.DisconnectedEvent -= OnConnectionDisconnected;
+            c.Disconnect();
         }
+
         Container.Clear();
     }
 
@@ -42,7 +44,7 @@ public class ConnectionManager : IConnectionDestroyer
     {
         var address = (client.Client.RemoteEndPoint as IPEndPoint)?.Address;
 
-        if (Container.Connections.Any(c => (c.Channel.Client.Client.RemoteEndPoint as IPEndPoint)?.Address == address))
+        if (Container.Connections.Any(c => (c.Client.Client.RemoteEndPoint as IPEndPoint)?.Address == address))
         {
             Debug.LogError("This connection already exist. Attempt to disconnect it");
 
@@ -50,24 +52,15 @@ public class ConnectionManager : IConnectionDestroyer
         }
         else
         {
-            Container.AddConnection(new Connection(this, client, OnConnectionDisconnectCallback, provider is Listener));
+            var connection = new Connection(client, provider is Listener);
+            connection.DisconnectedEvent += OnConnectionDisconnected;
+            Container.AddConnection(connection);
             Debug.Log($"Added new connection {address}");
         }
     }
 
-    private void OnConnectionDisconnectCallback(Channel channel)
-    {
-        var found = Container.Connections.FirstOrDefault(c => c.Channel == channel);
-        if (found != null)
-        {
-            DestroyConnection(found);
-        }
-    }
-
-    public void DestroyConnection(Connection connection)
+    private void OnConnectionDisconnected(Connection connection)
     {
         Container.RemoveConnection(connection);
-        connection.Channel.Client.Close();
-        connection.Dispose();
     }
 }

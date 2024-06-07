@@ -1,42 +1,27 @@
 using System;
-using System.Collections.Generic;
+using System.Net;
 using System.Net.Sockets;
-using UnityEngine;
 
-public interface IConnectionDestroyer
+public class Connection
 {
-    void DestroyConnection(Connection connection);
-}
-
-public class Connection : IDisposable
-{
-    public Channel Channel { get; private set; }
+    public NetworkStream Stream { get; }
+    public TcpClient Client { get; }
     public bool IsServer { get; }
-    private readonly IConnectionDestroyer destroyer;
+    public IPEndPoint RemoteEndPoint => Client.Client.RemoteEndPoint as IPEndPoint;
+    public IPEndPoint LocalEndPoint => Client.Client.LocalEndPoint as IPEndPoint;
+    public event Action<Connection> DisconnectedEvent;
 
-    public Connection(IConnectionDestroyer destroyer, TcpClient connectedClient, Action<Channel> disconnectCallback, bool isServer)
+    public Connection(TcpClient client, bool isServer)
     {
-        this.destroyer = destroyer;
+        Client = client;
         IsServer = isServer;
-
-        if (connectedClient.Connected)
-        {
-            Channel = new Channel(connectedClient, disconnectCallback);
-        }
-        else
-        {
-            Debug.Log("Failed to setup connection. Client is not connected");
-        }
+        Stream = Client.GetStream();
     }
 
-    public void Dispose()
+    public void Disconnect()
     {
-        Channel?.Dispose();
-        Channel = null;
-    }
-
-    public void DestroyConnection()
-    {
-        destroyer.DestroyConnection(this);
+        Stream.Close();
+        Client.Close();
+        DisconnectedEvent?.Invoke(this);
     }
 }
