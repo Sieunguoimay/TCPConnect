@@ -8,17 +8,17 @@ using System.Threading;
 using UnityEngine;
 
 
-public class Connector : IClientProvider
+public class Connector
 {
     private TcpClient _client;
-    private SynchronizationContext _syncContext;
+    private readonly SynchronizationContext syncContext;
     public bool IsConnecting => _client != null;
     public event Action<Connector> ConnectStatusChanged;
-    private Action<IClientProvider, TcpClient> _newConnectedClientCallback;
-
-    public void SetClientConnectedCallback(Action<IClientProvider, TcpClient> provideCallback)
+    public event Action<Connector, TcpClient> NewClientConnected;
+    
+    public Connector()
     {
-        _newConnectedClientCallback = provideCallback;
+        syncContext = SynchronizationContext.Current;
     }
 
     public void TryConnect(string address, int port)
@@ -28,7 +28,6 @@ public class Connector : IClientProvider
     {
         if (_client == null)
         {
-            _syncContext = SynchronizationContext.Current;
             _client = new TcpClient();
             _client.BeginConnect(endPoint.Address, endPoint.Port, OnConnected, null);
             Debug.Log($"Client Attempt to connect to {endPoint.Address} {endPoint.Port}");
@@ -47,7 +46,7 @@ public class Connector : IClientProvider
         {
             _client.EndConnect(result);
             var client = _client;
-            _syncContext.Post(_ => _newConnectedClientCallback?.Invoke(this, client), null);
+            syncContext.Post(_ => NewClientConnected?.Invoke(this, client), null);
         }
         catch (Exception e)
         {
@@ -57,7 +56,7 @@ public class Connector : IClientProvider
         finally
         {
             _client = null;
-            _syncContext.Post(_ => ConnectStatusChanged?.Invoke(this), null);
+            syncContext.Post(_ => ConnectStatusChanged?.Invoke(this), null);
         }
     }
 }

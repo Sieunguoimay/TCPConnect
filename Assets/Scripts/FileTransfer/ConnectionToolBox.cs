@@ -2,21 +2,17 @@ using System;
 
 public class ConnectionToolBox : IDisposable
 {
-    private readonly IConnectionTool[] _tools = new IConnectionTool[] { new FileTransfer() };
+    private readonly Connection c;
+    public FileTransferTool FileTransferTool { get; } = new();
 
-    public ConnectionToolBox(Connection connection)
+    public ConnectionToolBox(Connection c)
     {
-        foreach (var t in _tools)
-        {
-            t.Setup(connection);
-        }
+        this.c = c;
+        FileTransferTool.Setup();
     }
 
     public void Dispose()
     {
-        foreach (var t in _tools)
-        {
-            t.TearDown();
-        }
+        FileTransferTool.TearDown();
     }
 }

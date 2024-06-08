@@ -29,6 +29,6 @@ public class ConnectorUI : MonoBehaviour
     public void OnConnectButtonClicked()
     {
         if (string.IsNullOrEmpty(ipAddress.text)) return;
-        _connector.TryConnect(ipAddress.text, IPAddressManager.PORT);
+        _connector.TryConnect(ipAddress.text, IPAddressManager.MAIN_PORT);
     }
 }

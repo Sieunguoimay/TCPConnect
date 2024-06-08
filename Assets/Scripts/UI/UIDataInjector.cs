@@ -10,8 +10,8 @@ public class UIDataInjector : MonoBehaviour
 
     private void OnEnable()
     {
-        connector.Setup(startup.Connector);
-        listener.Setup(startup.Listener);
+        connector.Setup(startup.ControlConnectionManager.Connector);
+        listener.Setup(startup.ControlConnectionManager.Listener);
         connectionContainer.Setup(startup.ControlConnectionManager.Container);
     }
 

@@ -11,7 +11,7 @@ public class ConnectionUI : MonoBehaviour
     public void Setup(Connection connection)
     {
         _connection = connection;
-        label.text = (connection.Client.Client.RemoteEndPoint as IPEndPoint).Address.ToString();
+        label.text = connection.RemoteEndPoint.Address.ToString();
     }
 
     public void TearDown()

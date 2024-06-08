@@ -5,18 +5,7 @@ using UnityEngine;
 
 public class ApplicationStartUp : MonoBehaviour
 {
-    public ControlConnectionManager ControlConnectionManager { get; } = new();
-    public Listener Listener { get; } = new();
-    public Connector Connector { get; } = new();
-
-    private IEnumerable<IClientProvider> Providers
-    {
-        get
-        {
-            yield return Connector;
-            yield return Listener;
-        }
-    }
+    public ConnectionManager ControlConnectionManager { get; } = new();
 
     private void Start()
     {
@@ -35,14 +24,13 @@ public class ApplicationStartUp : MonoBehaviour
 
     private void StartUp()
     {
-        ControlConnectionManager.Setup(Providers);
-        var serverEndpoint = new IPEndPoint(IPAddress.Parse(IPAddressManager.GetLocalIPAddress()), IPAddressManager.PORT);
-        Listener.TryStartServer(serverEndpoint);
+        ControlConnectionManager.Setup();
+        ControlConnectionManager.Listener.TryStartServer(IPAddressManager.GetLocalIPEndPoint());
     }
 
     private void ShutDown()
     {
-        Listener.TryStopServer();
+        ControlConnectionManager.Listener.TryStopServer();
         ControlConnectionManager.TearDown();
     }
 }

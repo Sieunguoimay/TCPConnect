@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class IPAddressManager
 {
-    public static readonly int PORT = 7004;
+    public static readonly int MAIN_PORT = 7004;
     public static string GetLocalIPAddress()
     {
         var host = Dns.GetHostEntry(Dns.GetHostName());
@@ -17,5 +17,10 @@ public class IPAddressManager
             }
         }
         return "127.0.0.1";
+    }
+
+    public static IPEndPoint GetLocalIPEndPoint()
+    {
+        return new IPEndPoint(IPAddress.Parse(GetLocalIPAddress()), MAIN_PORT);
     }
 }
