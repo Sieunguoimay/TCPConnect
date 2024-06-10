@@ -1,108 +1,180 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Net;
 using System.Text;
 
 public class FileTransferTool
 {
-    public void Setup()
-    {
-
-    }
-
-    public void TearDown()
-    {
-
-    }
-
-    public void Transfer(byte[] data, int length)
-    {
-
-    }
-}
-
-public class DataConnectionMaker
-{
     private Dependencies _dependencies;
-    private MessageReader _messageReader;
-    private readonly ConnectionManager connectionManager = new();
+    private MessageReader _controlMessageReader;
+    private readonly ConnectionManager dataConnectionManager = new();
     public Connection DataConnection { get; private set; }
-    public event Action<DataConnectionMaker> ConnectionReadyEvent;
+    public event Action<FileTransferTool> ConnectionStatusChangedEvent;
+    private DataConnectionAction _dataConnectionAction = DataConnectionAction.NONE;
+
+    private string _filePathToRead;
+    private string _fileNameToWrite;
 
     public void Setup(Dependencies dependencies)
     {
         _dependencies = dependencies;
-        connectionManager.NewConnectionCreatedEvent -= OnNewConenctionCreated;
-        connectionManager.NewConnectionCreatedEvent += OnNewConenctionCreated;
-        _messageReader = new MessageReader(_dependencies.ControlConnection.DataReader, OnReceiveControlMessage);
+        dataConnectionManager.NewConnectionCreatedEvent -= OnNewConenctionCreated;
+        dataConnectionManager.NewConnectionCreatedEvent += OnNewConenctionCreated;
+        _controlMessageReader = new MessageReader(_dependencies.ControlConnection.DataReader, OnReceiveControlMessage);
     }
 
     public void TearDown()
     {
-        _messageReader.Dispose();
-        connectionManager.NewConnectionCreatedEvent -= OnNewConenctionCreated;
+        _controlMessageReader.Dispose();
+        dataConnectionManager.NewConnectionCreatedEvent -= OnNewConenctionCreated;
     }
-    public void StartMakingDataConnection(Dictionary<string, string> extraData)
+
+    public void StartMakingDataConnection(string filePath, Dictionary<string, string> metadata)
     {
+        _filePathToRead = filePath;
         if (_dependencies.ControlConnection.IsServer)
         {
-            var endpoint = new IPEndPoint(_dependencies.ControlConnection.LocalEndPoint.Address, 0);
-            connectionManager.Listener.TryStartServer(endpoint);
+            dataConnectionManager.Listener.TryStartServer(new IPEndPoint(_dependencies.ControlConnection.LocalEndPoint.Address, 0));
+            metadata["port"] = dataConnectionManager.Listener.LocalEndPoint.Port.ToString();
+            metadata["ipaddress"] = dataConnectionManager.Listener.LocalEndPoint.Address.ToString();
 
-            extraData["port"] = endpoint.Port.ToString();
-            extraData["ipaddress"] = endpoint.Address.ToString();
-
-            var extraDataStr = DictionaryToString(extraData);
-
-            _dependencies.ControlConnection.StreamWriter.WriteLine($"CONNECT_AND_RECEIVE_FILE?{extraDataStr}");
+            var extraDataStr = DictionaryToString(metadata);
+            var cmd = "CONNECT_AND_RECEIVE_FILE";
+            _dependencies.ControlConnection.StreamWriter.WriteLine($"{cmd}?{extraDataStr}");
             _dependencies.ControlConnection.StreamWriter.Flush();
+
+            _dataConnectionAction = DataConnectionAction.SEND_FILE;
+
+            Logger.Log($"StartMakingDataConnection CONNECT_AND_RECEIVE_FILE");
+
         }
         else
         {
-            var extraDataStr = DictionaryToString(extraData);
-            _dependencies.ControlConnection.StreamWriter.WriteLine($"LISTEN_AND_RECEIVE_FILE?{extraDataStr}");
+            var extraDataStr = DictionaryToString(metadata);
+            var cmd = "LISTEN_AND_RECEIVE_FILE";
+            _dependencies.ControlConnection.StreamWriter.WriteLine($"{cmd}?{extraDataStr}");
             _dependencies.ControlConnection.StreamWriter.Flush();
+
+            Logger.Log($"StartMakingDataConnection LISTEN_AND_RECEIVE_FILE");
         }
     }
 
     private void OnReceiveControlMessage(string msg)
     {
-        var splitted = msg.Split("?");
-        var cmd = splitted[0];
-        var dic = StringToDictionary(splitted[1]);
+        Logger.Log($"OnReceiveControlMessage msg={msg}");
 
-        if (cmd == "CONNECT_AND_RECEIVE_FILE")
+        var splitted = msg.Split("?");
+        if (splitted.Length <= 1)
         {
-            var ipAddress = dic["ipaddress"];
-            var port = int.Parse(dic["port"]);
-            connectionManager.Connector.TryConnect(ipAddress, port);
+            return;
+        }
+        var receivedCmd = splitted[0];
+        var metadata = StringToDictionary(splitted[1]);
+
+        if (receivedCmd == "CONNECT_AND_RECEIVE_FILE")
+        {
+            try
+            {
+                var ipAddress = metadata["ipaddress"];
+                var port = int.Parse(metadata["port"]);
+                dataConnectionManager.Connector.TryConnect(ipAddress, port);
+
+                _dataConnectionAction = DataConnectionAction.RECEIVE_FILE;
+                _fileNameToWrite = metadata["file_name"];
+            }
+            catch (Exception e)
+            {
+                Logger.Log($"{e.Message}");
+            }
         }
         else
-        if (cmd == "LISTEN_AND_RECEIVE_FILE")
+        if (receivedCmd == "CONNECT_AND_SEND_FILE")
         {
-            var endpoint = new IPEndPoint(_dependencies.ControlConnection.LocalEndPoint.Address, 0);
-            connectionManager.Listener.TryStartServer(endpoint);
+            try
+            {
+                var ipAddress = metadata["ipaddress"];
+                var port = int.Parse(metadata["port"]);
+                dataConnectionManager.Connector.TryConnect(ipAddress, port);
 
-            var extraData = new Dictionary<string, string>();
+                _dataConnectionAction = DataConnectionAction.SEND_FILE;
 
-            extraData["port"] = endpoint.Port.ToString();
-            extraData["ipaddress"] = endpoint.Address.ToString();
+            }
+            catch (Exception e)
+            {
+                Logger.Log($"{e.Message}");
+            }
+        }
+        else
+        if (receivedCmd == "LISTEN_AND_RECEIVE_FILE")
+        {
+            try
+            {
+                var sendingMetadata = new Dictionary<string, string>();
 
-            var extraDataStr = DictionaryToString(extraData);
+                dataConnectionManager.Listener.TryStartServer(new IPEndPoint(_dependencies.ControlConnection.LocalEndPoint.Address, 0));
+                sendingMetadata["ipaddress"] = dataConnectionManager.Listener.LocalEndPoint.Address.ToString();
+                sendingMetadata["port"] = dataConnectionManager.Listener.LocalEndPoint.Port.ToString();
 
-            _dependencies.ControlConnection.StreamWriter.WriteLine($"CONNECT_AND_SEND_FILE?{extraDataStr}");
-            _dependencies.ControlConnection.StreamWriter.Flush();
+                var extraDataStr = DictionaryToString(sendingMetadata);
+                var cmd = "CONNECT_AND_SEND_FILE";
+                _dependencies.ControlConnection.StreamWriter.WriteLine($"{cmd}?{extraDataStr}");
+                _dependencies.ControlConnection.StreamWriter.Flush();
+
+                _dataConnectionAction = DataConnectionAction.RECEIVE_FILE;
+                _fileNameToWrite = metadata["file_name"];
+
+                Logger.Log($"Flush {cmd}?{extraDataStr}");
+            }
+            catch (Exception e)
+            {
+                Logger.Log($"{e.Message}");
+            }
         }
     }
 
     private void OnNewConenctionCreated(ConnectionManager manager, Connection connection)
     {
+        Logger.Log($"OnNewConenctionCreated");
         if (DataConnection != null)
         {
+            Logger.Log($"OnNewConenctionCreated1");
             DataConnection = connection;
-            ConnectionReadyEvent?.Invoke(this);
+            ConnectionStatusChangedEvent?.Invoke(this);
+
+            Logger.Log($"OnNewConenctionCreated2 {_dataConnectionAction}");
+            if (_dataConnectionAction == DataConnectionAction.RECEIVE_FILE)
+            {
+                HandleFileReceiving();
+            }
+            else
+            if (_dataConnectionAction == DataConnectionAction.SEND_FILE)
+            {
+                DoFileSending();
+            }
         }
+    }
+
+    private void DoFileSending()
+    {
+        DataConnection.StreamWriter.Write($"HERE THE FILE {_filePathToRead}");
+
+        UnityEngine.Debug.Log($"SENT: HERE THE FILE {_filePathToRead}");
+        Logger.Log($"SENT: HERE THE FILE {_filePathToRead}");
+        // DataConnection.Disconnect();
+        // DataConnection = null;
+        // ConnectionStatusChangedEvent?.Invoke(this);
+    }
+
+    private void HandleFileReceiving()
+    {
+        // new ReadAndSaveToFile(DataConnection.DataReader, _fileNameToWrite, _ => _.Dispose());
+        new MessageReader(DataConnection.DataReader, msg =>
+        {
+            UnityEngine.Debug.Log($"RECEIVED: {msg} about to store at {_fileNameToWrite}");
+            Logger.Log($"RECEIVED: {msg} about to store at {_fileNameToWrite}");
+        });
     }
 
     public static string DictionaryToString(Dictionary<string, string> data)
@@ -134,8 +206,13 @@ public class DataConnectionMaker
             ControlConnection = controlConnection;
         }
     }
+    private enum DataConnectionAction
+    {
+        NONE = 0,
+        SEND_FILE = 1,
+        RECEIVE_FILE = 2,
+    }
 }
-
 public class MessageReader : IDisposable
 {
     private readonly DataReader dataReader;
@@ -157,6 +234,7 @@ public class MessageReader : IDisposable
     private void OnReadDataAsync(DataReader reader, byte[] arg2, int arg3)
     {
         var str = Encoding.ASCII.GetString(arg2, 0, arg3);
+        Logger.Log($"OnReadDataAsync {str}");
         stringBuilder.Append(str);
         var message = stringBuilder.ToString();
         if (message.EndsWith("\n"))
@@ -166,3 +244,27 @@ public class MessageReader : IDisposable
     }
 }
 
+public class ReadAndSaveToFile : IDisposable
+{
+    private readonly DataReader dataReader;
+    private readonly string savePath;
+    private readonly Action<ReadAndSaveToFile> doneCallback;
+
+    public ReadAndSaveToFile(DataReader dataReader, string savePath, Action<ReadAndSaveToFile> doneCallback)
+    {
+        this.dataReader = dataReader;
+        this.savePath = savePath;
+        this.doneCallback = doneCallback;
+        dataReader.ReadDataAsyncEvent += OnReadDataAsync;
+    }
+
+    private void OnReadDataAsync(DataReader reader, byte[] arg2, int arg3)
+    {
+        throw new NotImplementedException();
+    }
+
+    public void Dispose()
+    {
+        dataReader.ReadDataAsyncEvent -= OnReadDataAsync;
+    }
+}

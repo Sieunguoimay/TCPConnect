@@ -34,7 +34,7 @@ public class ListenerUI : MonoBehaviour
     {
         if (IsStarted)
         {
-            // runningStatus.text = $"Server Running at {_listener.IPEndpoint.Address}:{_listener.IPEndpoint.Port}";
+            runningStatus.text = $"Server Running at {_listener.LocalEndPoint.Address}:{_listener.LocalEndPoint.Port}";
         }
         else
         {

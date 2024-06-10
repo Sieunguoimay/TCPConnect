@@ -6,21 +6,27 @@ using UnityEngine;
 
 public class ConnectionToolBoxManager : MonoBehaviour
 {
-    [SerializeField] private ApplicationStartUp startUp;
-    [SerializeField] private TextMeshProUGUI log;
-
     private readonly Dictionary<Connection, ConnectionToolBox> toolBoxes = new();
-    private ConnectionContainer Container => startUp.ControlConnectionManager.Container;
+    private ConnectionContainer _container;
 
-    private void OnEnable()
+    public void Setup(ConnectionContainer container)
     {
-        Container.ConnectionsListChanged -= OnConnectionsListChanged;
-        Container.ConnectionsListChanged += OnConnectionsListChanged;
+        _container = container;
+        _container.ConnectionsListChanged -= OnConnectionsListChanged;
+        _container.ConnectionsListChanged += OnConnectionsListChanged;
     }
 
-    private void OnDisable()
+    public void TearDown()
     {
-        Container.ConnectionsListChanged -= OnConnectionsListChanged;
+        _container.ConnectionsListChanged -= OnConnectionsListChanged;
+        foreach (var b in toolBoxes)
+        {
+            b.Value.TearDownTools();
+        }
+    }
+    public bool TryGetToolBox(Connection connection, out ConnectionToolBox toolBox)
+    {
+        return toolBoxes.TryGetValue(connection, out toolBox);
     }
 
     private void OnConnectionsListChanged(ConnectionContainer container)
@@ -29,7 +35,9 @@ public class ConnectionToolBoxManager : MonoBehaviour
         {
             if (!toolBoxes.ContainsKey(c))
             {
-                toolBoxes.Add(c, new ConnectionToolBox(c));
+                var toolBox = new ConnectionToolBox();
+                toolBox.SetupTools(c);
+                toolBoxes.Add(c, toolBox);
             }
         }
         while (true)
@@ -40,6 +48,7 @@ public class ConnectionToolBoxManager : MonoBehaviour
                 if (!container.Connections.Contains(b.Key))
                 {
                     b.Value.Dispose();
+                    toolBoxes[b.Key].TearDownTools();
                     toolBoxes.Remove(b.Key);
                     removed = true;
                     break;
@@ -51,6 +60,6 @@ public class ConnectionToolBoxManager : MonoBehaviour
             }
         }
         Debug.Log($"toolBoxes {toolBoxes.Count}");
-        log.text = $"toolBoxes {toolBoxes.Count}";
+        Logger.Log($"toolBoxes {toolBoxes.Count}");
     }
 }

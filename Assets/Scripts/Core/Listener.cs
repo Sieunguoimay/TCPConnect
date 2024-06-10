@@ -7,16 +7,12 @@ using UnityEngine;
 
 public class Listener
 {
-    private readonly SynchronizationContext syncContext;
+    private SynchronizationContext _syncContext;
     private TcpListener _listener;
     public bool IsStarted => _listener != null;
+    public IPEndPoint LocalEndPoint => _listener != null ? (_listener.LocalEndpoint as IPEndPoint) : null;
     public event Action<Listener> StateChanged;
     public event Action<Listener, TcpClient> NewClientConnected;
-
-    public Listener()
-    {
-        syncContext = SynchronizationContext.Current;
-    }
 
     public void TryStartServer(int port)
     {
@@ -27,15 +23,26 @@ public class Listener
     {
         if (_listener == null)
         {
-            _listener = new TcpListener(endPoint);
-            _listener.Start();
-            _listener.BeginAcceptTcpClient(OnAcceptTcpClient, null);
-            Debug.Log($"StartServer at {endPoint.Address} {endPoint.Port} {string.Join(",", Dns.GetHostEntry("localhost").AddressList.Select(s => s))}");
-            StateChanged?.Invoke(this);
+            try
+            {
+                _syncContext = SynchronizationContext.Current;
+                _listener = new TcpListener(endPoint);
+                _listener.Start();
+                _listener.BeginAcceptTcpClient(OnAcceptTcpClient, null);
+                Debug.Log($"StartServer at {LocalEndPoint.Address} {LocalEndPoint.Port} {string.Join(",", Dns.GetHostEntry("localhost").AddressList.Select(s => s))}");
+                Logger.Log($"StartServer at {LocalEndPoint.Address} {LocalEndPoint.Port} {string.Join(",", Dns.GetHostEntry("localhost").AddressList.Select(s => s))}");
+                StateChanged?.Invoke(this);
+
+            }
+            catch (Exception e)
+            {
+                Logger.Log(e.Message);
+            }
         }
         else
         {
             Debug.Log("Server already started");
+            Logger.Log("Server already started");
         }
     }
 
@@ -58,7 +65,7 @@ public class Listener
             Debug.Log("OnAcceptTcpClient");
             var client = _listener.EndAcceptTcpClient(result);
             Debug.Log($"OnAcceptTcpClient2 {client}");
-            syncContext.Post(_ => NewClientConnected?.Invoke(this, client), null);
+            _syncContext.Post(_ => NewClientConnected?.Invoke(this, client), null);
             Debug.Log($"OnAcceptTcpClient3");
             _listener?.BeginAcceptTcpClient(OnAcceptTcpClient, null);
             Debug.Log($"OnAcceptTcpClient4");

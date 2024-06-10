@@ -1,11 +1,15 @@
-using System.Collections;
-using System.Collections.Generic;
-using System.Net;
 using UnityEngine;
 
 public class ApplicationStartUp : MonoBehaviour
 {
     public ConnectionManager ControlConnectionManager { get; } = new();
+    public ConnectionToolBoxManager ToolBoxManager { get; } = new();
+    public static ApplicationStartUp Instance { get; private set; }
+
+    private void Awake()
+    {
+        Instance = this;
+    }
 
     private void Start()
     {
@@ -26,10 +30,14 @@ public class ApplicationStartUp : MonoBehaviour
     {
         ControlConnectionManager.Setup();
         ControlConnectionManager.Listener.TryStartServer(IPAddressManager.GetLocalIPEndPoint());
+
+        ToolBoxManager.Setup(ControlConnectionManager.Container);
     }
 
     private void ShutDown()
     {
+        ToolBoxManager.TearDown();
+
         ControlConnectionManager.Listener.TryStopServer();
         ControlConnectionManager.TearDown();
     }

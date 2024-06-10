@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Net;
 using TMPro;
 using UnityEngine;
@@ -5,7 +6,7 @@ using UnityEngine;
 public class ConnectionUI : MonoBehaviour
 {
     [SerializeField] private TextMeshProUGUI label;
-    
+
     private Connection _connection;
 
     public void Setup(Connection connection)
@@ -21,6 +22,14 @@ public class ConnectionUI : MonoBehaviour
 
     public void OnCloseConnectionClicked()
     {
-        // _connection.DestroyConnection();
+        _connection.Disconnect();
+    }
+
+    public void OnSendFileClicked()
+    {
+        if (ApplicationStartUp.Instance.ToolBoxManager.TryGetToolBox(_connection, out var toolbox))
+        {
+            toolbox.FileTransferTool.StartMakingDataConnection("file_path_example", new Dictionary<string, string> { { "file_name", "file_name_example" } });
+        }
     }
 }
